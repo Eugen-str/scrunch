@@ -5,7 +5,8 @@ pub enum LispVal {
     String (String),
     Bool (bool),
     Ident (IdentType),
-    List (Vec<LispVal>)
+    List (Vec<LispVal>),
+    Nil
 }
 
 impl LispVal {
@@ -17,6 +18,7 @@ impl LispVal {
             LispVal::Bool(_) => "bool",
             LispVal::Ident(_) => "ident",
             LispVal::List(_) => "list",
+            LispVal::Nil => "nil",
         }.to_string()
     }
 }
@@ -25,16 +27,18 @@ pub enum LispErr {
     ErrType(String, String),
     ErrNumArgs(u32, u32),
     ErrNotFunc(String),
+    ErrUnknownIdent(String),
     ErrOther
 }
 
 impl std::fmt::Display for LispErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErrType(exp, got)   => write!(f, "Type error: expected {}, but got {}", exp, got),
-            ErrNumArgs(exp, got)=> write!(f, "Wrong number of arguments: expected {}, but got {}", exp, got),
-            ErrNotFunc(func)    => write!(f, "`{}` is not a function", func),
-            ErrOther            => write!(f, "Error"),
+            ErrType(exp, got)      => write!(f, "Type error: expected {}, but got {}", exp, got),
+            ErrNumArgs(exp, got)   => write!(f, "Wrong number of arguments: expected {}, but got {}", exp, got),
+            ErrNotFunc(func)       => write!(f, "`{}` is not a function", func),
+            ErrUnknownIdent(ident) => write!(f, "Unknown identifier `{}`", ident),
+            ErrOther => write!(f, "Error"),
         }
     }
 }
@@ -57,22 +61,7 @@ pub enum IdentType {
     Mod,
     List,
     Eq,
-}
-
-impl std::fmt::Display for IdentType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let symbol = match self {
-            IdentType::Add  => "+",
-            IdentType::Sub  => "-",
-            IdentType::Mult => "*",
-            IdentType::Div  => "/",
-            IdentType::Mod  => "%",
-            IdentType::List => "list",
-            IdentType::Eq   => "eq?",
-        };
-        _ = write!(f, "{}", symbol);
-        Ok(())
-    }
+    Print,
 }
 
 impl std::fmt::Display for LispVal {
@@ -103,14 +92,14 @@ impl std::fmt::Display for LispVal {
                         Err(err) => return Err(err),
                     }
                 }
-                let res = write!(f, "{})", xs.last().unwrap());
-                match res {
+                match write!(f, "{})", xs.last().unwrap()) {
                     Ok(_) => (),
                     Err(err) => return Err(err),
                 }
                 Ok(())
             }
-            Self::Ident(x) => write!(f, "{}", x)
+            Self::Nil => write!(f, "nil"),
+            Self::Ident(_) => Ok(())
         }
     }
 }
@@ -157,17 +146,24 @@ fn eval_list(lst: &Vec<LispVal>) -> Either<LispErr, LispVal>{
     };
 
     match func {
-        IdentType::Add  => return apply(args, |acc, e| acc + e),
-        IdentType::Sub  => return apply(args, |acc, e| acc - e),
-        IdentType::Mult => return apply(args, |acc, e| acc * e),
-        IdentType::Div  => return apply(args, |acc, e| acc / e),
-        IdentType::Mod  => return apply(args, |acc, e| acc % e),
+        IdentType::Add  => apply(args, |acc, e| acc + e),
+        IdentType::Sub  => apply(args, |acc, e| acc - e),
+        IdentType::Mult => apply(args, |acc, e| acc * e),
+        IdentType::Div  => apply(args, |acc, e| acc / e),
+        IdentType::Mod  => apply(args, |acc, e| acc % e),
         IdentType::Eq   => {
             let fst = args.get(0).unwrap();
             let res = args.get(1..).unwrap().into_iter().map(|e| e == fst).fold(true, |acc, e| acc && e);
             Right(LispVal::Bool(res))
         },
         IdentType::List => return Right(LispVal::List(args)),
+        IdentType::Print => {
+            if args.len() != 1 {
+                return Left(ErrNumArgs(1, args.len() as u32));
+            }
+            print!("{}", args.get(0).unwrap());
+            Right(LispVal::Nil)
+        },
     }
 }
 
@@ -178,6 +174,7 @@ pub fn eval(expr: &LispVal) -> Either<LispErr, LispVal>{
         LispVal::Char(x)   => Right(LispVal::Char(*x)),
         LispVal::String(x) => Right(LispVal::String(x.clone())),
         LispVal::Bool(x)   => Right(LispVal::Bool(*x)),
+        LispVal::Nil       => Right(LispVal::Nil),
         LispVal::Ident(_)  => Left(ErrOther),
     }
 }

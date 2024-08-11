@@ -1,49 +1,49 @@
 use crate::lisp::scrunch::LispVal;
 use crate::lisp::scrunch::IdentType;
 
-fn str_to_val(str: String) -> Option<LispVal>{
-    let str = str.trim().to_string();
+use super::scrunch::Either::{self, *};
+use super::scrunch::LispErr;
+
+fn str_to_val(str: String) -> Either<LispErr, LispVal>{
     if str.starts_with("#\\"){
         let parse_char = &str[2..];
         match parse_char {
-            "space" => return Some(LispVal::Char(' ')),
-            "newline" => return Some(LispVal::Char('\n')),
+            "space" => return Right(LispVal::Char(' ')),
+            "newline" => return Right(LispVal::Char('\n')),
             _ => if parse_char.len() == 1 && parse_char.is_ascii() {
-                return Some(LispVal::Char(parse_char.chars().nth(0).unwrap()));
+                return Right(LispVal::Char(parse_char.chars().nth(0).unwrap()));
             },
         }
     }
     if str.starts_with("\"") && str.starts_with("\""){
-        return Some(LispVal::String(str[1..str.len()-1].to_string()))
+        return Right(LispVal::String(str[1..str.len()-1].to_string()))
     }
     match str.as_str() {
-        "+" => Some(LispVal::Ident(IdentType::Add)),
-        "-" => Some(LispVal::Ident(IdentType::Sub)),
-        "*" => Some(LispVal::Ident(IdentType::Mult)),
-        "/" => Some(LispVal::Ident(IdentType::Div)),
-        "%" => Some(LispVal::Ident(IdentType::Mod)),
-        "eq?" => Some(LispVal::Ident(IdentType::Eq)),
-        "#t" => Some(LispVal::Bool(true)),
-        "#f" => Some(LispVal::Bool(false)),
-        "list" => Some(LispVal::Ident(IdentType::List)),
+        "+" => Right(LispVal::Ident(IdentType::Add)),
+        "-" => Right(LispVal::Ident(IdentType::Sub)),
+        "*" => Right(LispVal::Ident(IdentType::Mult)),
+        "/" => Right(LispVal::Ident(IdentType::Div)),
+        "%" => Right(LispVal::Ident(IdentType::Mod)),
+        "eq?" => Right(LispVal::Ident(IdentType::Eq)),
+        "#t" => Right(LispVal::Bool(true)),
+        "#f" => Right(LispVal::Bool(false)),
+        "list" => Right(LispVal::Ident(IdentType::List)),
+        "print" => Right(LispVal::Ident(IdentType::Print)),
         _ => match str.parse::<i32>(){
-            Ok(n) => Some(LispVal::Int(n)),
-            Err(_) => None,
+            Ok(n) => Right(LispVal::Int(n)),
+            Err(_) => Left(LispErr::ErrUnknownIdent(str)),
         }
     }
 }
 
-fn add_to_list(val: &mut LispVal, elem: Option<LispVal>){
+fn add_to_list(val: &mut LispVal, elem: LispVal){
     if let LispVal::List(xs) = val {
-        match elem {
-            Some(x) => if xs.len() == 0{
-                *xs = if let LispVal::List(lst) = x {
-                    lst
-                } else { vec![x] }
-            } else {
-                xs.push(x)
-            },
-            None => (),
+        if xs.len() == 0{
+            *xs = if let LispVal::List(lst) = elem {
+                lst
+            } else { vec![elem] }
+        } else {
+            xs.push(elem)
         }
     }
 }
@@ -63,7 +63,7 @@ fn skip_parens(str: String) -> usize {
     return 0;
 }
 
-pub fn parse_expr(input: String) -> LispVal{
+pub fn parse_expr(input: String) -> Either<LispErr, LispVal>{
     let mut res: LispVal = LispVal::List(vec![]);
     let mut acc: Vec<char> = vec![];
     let mut i: usize = 0;
@@ -71,27 +71,41 @@ pub fn parse_expr(input: String) -> LispVal{
         let c = input.chars().nth(i).unwrap();
         if c == '(' && i != 0{
             let next_paren = skip_parens(input[i+1..].to_string());
-            let in_expr = parse_expr(input[i..i+next_paren+2].to_string());
+            let in_expr;
+
+            match parse_expr(input[i..i+next_paren+2].to_string()) {
+                Right(expr) => in_expr = expr,
+                Left(err) => return Left(err),
+            }
+
             if acc.clone().into_iter().collect::<String>() == "'"{
                 if let LispVal::List(mut xs) = in_expr {
                     xs.insert(0, LispVal::Ident(IdentType::List));
                     let new_in_expr = LispVal::List(xs);
-                    add_to_list(&mut res, Some(new_in_expr));
+                    add_to_list(&mut res, new_in_expr);
                 }
             } else {
-                add_to_list(&mut res, Some(in_expr));
+                add_to_list(&mut res, in_expr);
             }
             i += next_paren;
         }
         else if c == ' ' || c == ')' {
-            let str: String = acc.into_iter().collect();
+            let str: String = acc.into_iter().collect::<String>().trim().to_string();
             acc = vec![];
 
-            add_to_list(&mut res, str_to_val(str));
+            if str != "" && str != "'"{
+                let parsed_val;
+                match str_to_val(str) {
+                    Right(val) => parsed_val = val,
+                    Left(err) => return Left(err),
+                }
+
+                add_to_list(&mut res, parsed_val);
+            }
         } else if c != '('{
             acc.push(c);
         }
         i += 1;
     }
-    return res;
+    return Right(res);
 }

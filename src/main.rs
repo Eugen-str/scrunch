@@ -15,9 +15,14 @@ fn main() {
         }
 
         reader.add_history(input.clone());
-        let expr = parse_expr(input);
-
-        //println!("{}", expr);
+        let expr;
+        match parse_expr(input){
+            lisp::scrunch::Either::Right(e) => expr = e,
+            lisp::scrunch::Either::Left(err) => {
+                println!("{}", err);
+                continue;
+            },
+        }
 
         match eval(&expr) {
             lisp::scrunch::Either::Left(err) => {

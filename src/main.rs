@@ -27,7 +27,7 @@ fn main() {
             },
         }
 
-        println!("{:?}", expr);
+        //println!("{:?}", expr);
 
         match eval(&expr, &mut env) {
             lisp::scrunch::Either::Left(err) => {
@@ -37,5 +37,7 @@ fn main() {
                 println!("{}", val);
             }
         };
+
+        //println!("ENV = {:?}", env.definitions);
     }
 }

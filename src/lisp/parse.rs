@@ -19,7 +19,7 @@ fn str_to_val(str: String) -> Either<LispErr, LispVal>{
             },
         }
     }
-    if str.starts_with("\"") && str.starts_with("\""){
+    if str.starts_with("\"") && str.ends_with("\""){
         return Right(LispVal::String(str[1..str.len()-1].to_string()))
     }
     match str.as_str() {

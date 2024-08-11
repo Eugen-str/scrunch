@@ -35,6 +35,9 @@ fn str_to_val(str: String) -> Either<LispErr, LispVal>{
         "print" => Right(LispVal::Ident(IdentType::Print)),
         "lambda" => Right(LispVal::Ident(IdentType::Lambda)),
         "define" => Right(LispVal::Ident(IdentType::Define)),
+        "if" => Right(LispVal::Ident(IdentType::If)),
+        "<" => Right(LispVal::Ident(IdentType::Lt)),
+        ">" => Right(LispVal::Ident(IdentType::Gt)),
         _ => match str.parse::<i32>(){
             Ok(n) => Right(LispVal::Int(n)),
             Err(_) => check_ident(str),

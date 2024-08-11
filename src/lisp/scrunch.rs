@@ -74,6 +74,9 @@ pub enum IdentType {
     Print,
     Lambda,
     Define,
+    If,
+    Lt,
+    Gt,
 }
 
 impl std::fmt::Display for LispVal {
@@ -180,11 +183,42 @@ fn eval_lambda(lambda: &Vec<LispVal>) -> Either<LispErr, LispVal>{
     Right(LispVal::Lambda(Box::new(args.clone()), Box::new(def.clone())))
 }
 
+fn eval_if(args: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
+    let args = args.get(1..).unwrap();
+
+    if args.len() < 3 {
+        return Left(ErrNumArgs(3, args.len() as u32));
+    }
+
+    let fst;
+    match eval(args.get(0).unwrap(), env){
+        Right(val) => fst = val,
+        Left(err) => return Left(err),
+    }
+    if fst.type_of() != "bool" {
+        return Left(ErrType("bool".to_string(), fst.type_of().to_string()));
+    }
+
+    let fst_value;
+    if let LispVal::Bool(val) = fst{
+        fst_value = val;
+    } else {
+        return Left(ErrOther);
+    }
+
+    if fst_value {
+        return eval(args.get(1).unwrap(), env);
+    } else {
+        return eval(args.get(2).unwrap(), env);
+    }
+}
+
 fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
     let func;
     match lst.get(0).unwrap() {
         LispVal::Ident(IdentType::Define) => return eval_define(lst, env),
         LispVal::Ident(IdentType::Lambda) => return eval_lambda(lst),
+        LispVal::Ident(IdentType::If) => return eval_if(lst, env),
         LispVal::Ident(x) => func = x,
         x => {
             return Left(ErrNotFunc(format!("{}", x)));
@@ -212,6 +246,26 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
             let res = args.get(1..).unwrap().into_iter().map(|e| e == fst).fold(true, |acc, e| acc && e);
             Right(LispVal::Bool(res))
         },
+        IdentType::Lt   => {
+            if args.len() != 2 {
+                return Left(ErrNumArgs(2, args.len() as u32));
+            }
+            let fst;
+            match get_int(args.get(0).unwrap()){
+                Right(x) => fst = x,
+                Left(err) => return Left(err),
+            }
+            let snd;
+            match get_int(args.get(1).unwrap()){
+                Right(x) => snd = x,
+                Left(err) => return Left(err),
+            }
+
+            if fst < snd{
+                return Right(LispVal::Bool(true));
+            }
+            return Right(LispVal::Bool(false));
+        }
         IdentType::List => return Right(LispVal::List(args)),
         IdentType::Print => {
             if args.len() != 1 {
@@ -274,7 +328,10 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
 
             return lambda_res;
         },
-        _ => panic!("Unreachable code"),
+        IdentType::Lambda => Left(ErrOther),
+        IdentType::Define => Left(ErrOther),
+        IdentType::If => Left(ErrOther),
+        IdentType::Gt => Left(ErrOther),
     }
 }
 
@@ -291,6 +348,6 @@ pub fn eval(expr: &LispVal, env: &mut Env) -> Either<LispErr, LispVal>{
             IdentType::Name(x) => env.get_def(x.to_string()),
             _ => Left(ErrOther),
         },
-        _ => panic!("oops")
+        LispVal::Lambda(_, _) => Left(ErrOther),
     }
 }

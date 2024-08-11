@@ -25,4 +25,8 @@ scrunch> (add3 5)
 8
 scrunch> (add3 5 3)
 ERROR: Wrong number of arguments: expected 1, but got 2
+scrunch> (define fib (lambda (n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2)))))))
+nil
+scrunch> (fib 20)
+6765
 ```

@@ -4,6 +4,10 @@ use crate::lisp::scrunch::IdentType;
 use super::scrunch::Either::{self, *};
 use super::scrunch::LispErr;
 
+fn check_ident(name: String) -> Either<LispErr, LispVal>{
+    return Right(LispVal::Ident(IdentType::Name(name)));
+}
+
 fn str_to_val(str: String) -> Either<LispErr, LispVal>{
     if str.starts_with("#\\"){
         let parse_char = &str[2..];
@@ -29,9 +33,11 @@ fn str_to_val(str: String) -> Either<LispErr, LispVal>{
         "#f" => Right(LispVal::Bool(false)),
         "list" => Right(LispVal::Ident(IdentType::List)),
         "print" => Right(LispVal::Ident(IdentType::Print)),
+        "lambda" => Right(LispVal::Ident(IdentType::Lambda)),
+        "define" => Right(LispVal::Ident(IdentType::Define)),
         _ => match str.parse::<i32>(){
             Ok(n) => Right(LispVal::Int(n)),
-            Err(_) => Left(LispErr::ErrUnknownIdent(str)),
+            Err(_) => check_ident(str),
         }
     }
 }

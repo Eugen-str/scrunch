@@ -1,11 +1,11 @@
-#[derive (Debug, PartialEq)]
+#[derive (Debug, PartialEq, Clone)]
 pub enum LispVal {
-    Int (i32),
-    Char (char),
-    String (String),
-    Bool (bool),
-    Ident (IdentType),
-    List (Vec<LispVal>),
+    Int(i32),
+    Char(char),
+    String(String),
+    Bool(bool),
+    Ident(IdentType),
+    List(Vec<LispVal>),
     Nil
 }
 
@@ -28,17 +28,19 @@ pub enum LispErr {
     ErrNumArgs(u32, u32),
     ErrNotFunc(String),
     ErrUnknownIdent(String),
+    ErrNotImplemented(String),
     ErrOther
 }
 
 impl std::fmt::Display for LispErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErrType(exp, got)      => write!(f, "Type error: expected {}, but got {}", exp, got),
-            ErrNumArgs(exp, got)   => write!(f, "Wrong number of arguments: expected {}, but got {}", exp, got),
-            ErrNotFunc(func)       => write!(f, "`{}` is not a function", func),
-            ErrUnknownIdent(ident) => write!(f, "Unknown identifier `{}`", ident),
-            ErrOther => write!(f, "Error"),
+            ErrType(exp, got)      => write!(f, "ERROR: Type error: expected {}, but got {}", exp, got),
+            ErrNumArgs(exp, got)   => write!(f, "ERROR: Wrong number of arguments: expected {}, but got {}", exp, got),
+            ErrNotFunc(func)       => write!(f, "ERROR: `{}` is not a function", func),
+            ErrUnknownIdent(ident) => write!(f, "ERROR: Unknown identifier `{}`", ident),
+            ErrNotImplemented(x)   => write!(f, "ERROR: Not implemented:`{}`", x),
+            ErrOther => write!(f, "ERROR"),
         }
     }
 }
@@ -52,8 +54,11 @@ pub enum Either<A, B>{
 
 use Either::*;
 
-#[derive (Debug, PartialEq)]
+use super::env::Env;
+
+#[derive (Debug, PartialEq, Clone)]
 pub enum IdentType {
+    Name(String),
     Add,
     Sub,
     Mult,
@@ -62,6 +67,8 @@ pub enum IdentType {
     List,
     Eq,
     Print,
+    Lambda,
+    Define,
 }
 
 impl std::fmt::Display for LispVal {
@@ -99,7 +106,7 @@ impl std::fmt::Display for LispVal {
                 Ok(())
             }
             Self::Nil => write!(f, "nil"),
-            Self::Ident(_) => Ok(())
+            Self::Ident(_) => Ok(()),
         }
     }
 }
@@ -126,9 +133,42 @@ fn apply<F>(args: Vec<LispVal>, func: F) -> Either<LispErr, LispVal>
     Right(LispVal::Int(res))
 }
 
-fn eval_list(lst: &Vec<LispVal>) -> Either<LispErr, LispVal>{
+fn eval_lambda(lambda: &Vec<LispVal>) -> Either<LispErr, LispVal>{
+    println!("args = {:?}", lambda);
+    return Left(ErrNotImplemented("lambda".to_string()))
+}
+
+fn eval_define(args: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
+    let args = args.get(1..).unwrap();
+    if args.len() != 2 {
+        return Left(ErrNumArgs(2, args.len() as u32));
+    }
+
+    let name;
+    if let LispVal::Ident(ident) = args.get(0).unwrap(){
+        if let IdentType::Name(str) = ident{
+            name = str.to_string();
+        } else {
+            return Left(ErrOther);
+        }
+    } else {
+        return Left(ErrOther);
+    }
+    let var;
+    match eval(args.get(1).unwrap(), env){
+        Right(x) => var = x,
+        Left(err) => return Left(err),
+    };
+    env.insert(name.clone(), var);
+
+    return Right(LispVal::Nil);
+}
+
+fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
     let func;
     match lst.get(0).unwrap() {
+        LispVal::Ident(IdentType::Define) => return eval_define(lst, env),
+        LispVal::Ident(IdentType::Lambda) => return eval_lambda(lst),
         LispVal::Ident(x) => func = x,
         x => {
             return Left(ErrNotFunc(format!("{}", x)));
@@ -137,11 +177,11 @@ fn eval_list(lst: &Vec<LispVal>) -> Either<LispErr, LispVal>{
 
     let mut args = vec![];
     for e in lst.get(1..).unwrap() {
-        match eval(e) {
+        match eval(e, env) {
+            Right(val) => args.push(val),
             Left(eval_err) => {
                 return Left(eval_err);
             },
-            Right(val) => args.push(val),
         }
     };
 
@@ -164,17 +204,23 @@ fn eval_list(lst: &Vec<LispVal>) -> Either<LispErr, LispVal>{
             print!("{}", args.get(0).unwrap());
             Right(LispVal::Nil)
         },
+        IdentType::Name(_) => Left(ErrOther),
+        IdentType::Define => panic!("Unreachable code"),
+        IdentType::Lambda => panic!("Unreachable code"),
     }
 }
 
-pub fn eval(expr: &LispVal) -> Either<LispErr, LispVal>{
+pub fn eval(expr: &LispVal, env: &mut Env) -> Either<LispErr, LispVal>{
     match expr {
-        LispVal::List(xs)  => eval_list(xs),
+        LispVal::List(xs)  => eval_list(xs, env),
         LispVal::Int(x)    => Right(LispVal::Int(*x)),
         LispVal::Char(x)   => Right(LispVal::Char(*x)),
         LispVal::String(x) => Right(LispVal::String(x.clone())),
         LispVal::Bool(x)   => Right(LispVal::Bool(*x)),
         LispVal::Nil       => Right(LispVal::Nil),
-        LispVal::Ident(_)  => Left(ErrOther),
+        LispVal::Ident(x)  => match x {
+            IdentType::Name(x) => env.get_var(x.to_string()),
+            _ => Left(ErrOther),
+        },
     }
 }

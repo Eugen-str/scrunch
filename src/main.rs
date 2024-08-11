@@ -2,12 +2,15 @@ mod lisp;
 
 use lisp::scrunch::eval;
 use lisp::parse::parse_expr;
+use lisp::env::Env;
 
 use linefeed::{Interface, ReadResult};
 
 fn main() {
     let reader = Interface::new("scrunch").unwrap();
     reader.set_prompt("scrunch> ").unwrap();
+
+    let mut env = Env::new();
 
     while let ReadResult::Input(input) = reader.read_line().unwrap() {
         if input == "quit" || input == "exit" {
@@ -24,7 +27,9 @@ fn main() {
             },
         }
 
-        match eval(&expr) {
+        println!("{:?}", expr);
+
+        match eval(&expr, &mut env) {
             lisp::scrunch::Either::Left(err) => {
                 println!("{}", err);
             }

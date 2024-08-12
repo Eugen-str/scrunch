@@ -40,6 +40,9 @@ fn str_to_val(str: String) -> Either<LispErr, LispVal>{
         ">" => Right(LispVal::Ident(IdentType::Gt)),
         "<=" => Right(LispVal::Ident(IdentType::LtEq)),
         ">=" => Right(LispVal::Ident(IdentType::GtEq)),
+        "car" => Right(LispVal::Ident(IdentType::Car)),
+        "cdr" => Right(LispVal::Ident(IdentType::Cdr)),
+        "cons" => Right(LispVal::Ident(IdentType::Cons)),
         _ => match str.parse::<i32>(){
             Ok(n) => Right(LispVal::Int(n)),
             Err(_) => check_ident(str),

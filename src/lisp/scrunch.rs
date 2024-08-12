@@ -79,6 +79,9 @@ pub enum IdentType {
     Gt,
     LtEq,
     GtEq,
+    Car,
+    Cdr,
+    Cons
 }
 
 impl std::fmt::Display for LispVal {
@@ -102,17 +105,20 @@ impl std::fmt::Display for LispVal {
             LispVal::String(s) => write!(f, "\"{}\"", *s),
             LispVal::List(xs) => {
                 _ = write!(f, "'(");
-                for x in xs.get(0..xs.len()-1).unwrap(){
-                    let res = write!(f, "{} ", x);
-                    match res {
+                if xs.len() != 0 {
+                    for x in xs.get(0..xs.len()-1).unwrap(){
+                        let res = write!(f, "{} ", x);
+                        match res {
+                            Ok(_) => (),
+                            Err(err) => return Err(err),
+                        }
+                    }
+                    match write!(f, "{}", xs.last().unwrap()) {
                         Ok(_) => (),
                         Err(err) => return Err(err),
                     }
                 }
-                match write!(f, "{})", xs.last().unwrap()) {
-                    Ok(_) => (),
-                    Err(err) => return Err(err),
-                }
+                _ = write!(f, ")");
                 Ok(())
             }
             Self::Nil => write!(f, "nil"),
@@ -341,6 +347,71 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
 
             return lambda_res;
         },
+        IdentType::Car => {
+            if args.len() != 1 {
+                return Left(ErrNumArgs(1, args.len() as u32));
+            }
+            let lst = args.get(0).unwrap().clone();
+            if lst.type_of() != "list" {
+                return Left(ErrType("list".to_string(), lst.type_of()));
+            }
+
+            let lst_vals = if let LispVal::List(unwrapped_list) = lst {
+                unwrapped_list
+            } else { vec![] };
+
+            if lst_vals.len() >= 1 {
+                return Right(lst_vals.get(0).unwrap().clone());
+            } else {
+                return Left(ErrOther);
+            }
+        },
+        IdentType::Cdr => {
+            if args.len() != 1 {
+                return Left(ErrNumArgs(1, args.len() as u32));
+            }
+            let lst = args.get(0).unwrap().clone();
+            if lst.type_of() != "list" {
+                return Left(ErrType("list".to_string(), lst.type_of()));
+            }
+
+            let lst_vals = if let LispVal::List(unwrapped_list) = lst {
+                unwrapped_list
+            } else { vec![] };
+
+            if lst_vals.len() == 1 {
+                return Right(LispVal::List(vec![]));
+            }
+
+            if lst_vals.len() >= 2 {
+                return Right(LispVal::List(lst_vals.get(1..).unwrap().to_vec().clone()));
+            } else {
+                return Left(ErrOther);
+            }
+        },
+        IdentType::Cons => {
+            if args.len() != 2 {
+                return Left(ErrNumArgs(2, args.len() as u32));
+            }
+            let arg1 = args.get(0).unwrap().clone();
+            if arg1.type_of() == "list" {
+                return Left(ErrType("any except list".to_string(), "list".to_string()));
+            }
+            let arg2 = args.get(1).unwrap().clone();
+            if arg2.type_of() != "list" {
+                return Left(ErrType("list".to_string(), arg2.type_of()));
+            }
+
+            let mut res = if let LispVal::List(contents) = arg2 {
+                contents
+            } else {
+                vec![]
+            };
+
+            res.insert(0, arg1);
+
+            return Right(LispVal::List(res));
+        }
         IdentType::Lambda => Left(ErrOther),
         IdentType::Define => Left(ErrOther),
         IdentType::If => Left(ErrOther),

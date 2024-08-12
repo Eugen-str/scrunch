@@ -29,7 +29,6 @@ fn repl(){
             },
         }
 
-        println!("{:?}", expr);
         match eval(&expr, &mut env) {
             lisp::scrunch::Either::Left(err) => {
                 println!("{}", err);

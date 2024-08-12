@@ -33,6 +33,9 @@ fn str_to_val(str: String) -> Either<LispErr, LispVal>{
         "#f" => Right(LispVal::Bool(false)),
         "list" => Right(LispVal::Ident(IdentType::List)),
         "println" => Right(LispVal::Ident(IdentType::Println)),
+        "write" => Right(LispVal::Ident(IdentType::Write)),
+        "writeln" => Right(LispVal::Ident(IdentType::Writeln)),
+        "display" => Right(LispVal::Ident(IdentType::Display)),
         "lambda" => Right(LispVal::Ident(IdentType::Lambda)),
         "define" => Right(LispVal::Ident(IdentType::Define)),
         "if" => Right(LispVal::Ident(IdentType::If)),
@@ -78,13 +81,22 @@ fn skip_parens(str: String) -> usize {
 }
 
 pub fn parse_expr(input: String) -> Either<LispErr, LispVal>{
+    let input = input.trim();
     let mut res: LispVal = LispVal::List(vec![]);
     let mut acc: Vec<char> = vec![];
     let mut i: usize = 0;
-    let mut paren_count = 1;
-    while i < input.as_str().len() as usize {
+    let mut paren_count = if input.chars().nth(0).unwrap() == '(' { 1 } else { 0 };
+
+    while i < input.len() as usize {
         let c = input.chars().nth(i).unwrap();
-        if c == '(' && i != 0{
+
+        if c == ';' {
+            if paren_count != 0 {
+                return Left(LispErr::ErrSyntax("parentheses mismatch".to_string()));
+            }
+
+            return Right(res);
+        } else if c == '(' && i != 0{
             let next_paren = skip_parens(input[i+1..].to_string());
             let in_expr;
 
@@ -107,8 +119,22 @@ pub fn parse_expr(input: String) -> Either<LispErr, LispVal>{
             i += next_paren;
         }
         else if c == ' ' || c == ')' {
-            let str: String = acc.into_iter().collect::<String>().trim().to_string();
+            let mut str: String = acc.into_iter().collect::<String>().trim().to_string();
             acc = vec![];
+
+            if str.starts_with("\"") && !str.ends_with("\""){
+                let mut c_ = input.chars().nth(i).unwrap();
+                while c_ != '"' {
+                    if c_ == '\n' || c_ == ')' {
+                        return Left(LispErr::ErrSyntax("unterminated string".to_string()));
+                    }
+
+                    c_ = input.chars().nth(i).unwrap();
+                    str.push(c_);
+                    i += 1;
+                }
+                i -= 1;
+            }
 
             if c == ')'{
                 paren_count -= 1;

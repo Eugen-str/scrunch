@@ -16,8 +16,11 @@
 
 (define test (list 1 2 3 4))
 
-(println "nums:")
-(println test)
+(define print-list
+  (lambda (lst) (map display lst)))
 
-(println "names:")
-(println (map get-num-name test))
+(write "nums: ")
+(writeln test)
+
+(write "names: ")
+(writeln (map get-num-name test))

@@ -50,6 +50,8 @@ impl std::fmt::Display for LispErr {
     }
 }
 
+use core::panic;
+
 use LispErr::*;
 
 pub enum Either<A, B>{
@@ -72,6 +74,9 @@ pub enum IdentType {
     List,
     Eq,
     Println,
+    Write,
+    Writeln,
+    Display,
     Lambda,
     Define,
     If,
@@ -229,6 +234,38 @@ fn apply_eq<F>(fst: i32, snd: i32, func: F) -> Either<LispErr, LispVal>
     return Right(LispVal::Bool(false));
 }
 
+fn displayln(x: LispVal) -> String{
+    match x{
+        LispVal::Int(x) => format!("{}", x),
+        LispVal::Bool(b) => {
+            if b {
+                format!("#t")
+            } else {
+                format!("#f")
+            }
+        }
+        LispVal::Char(c) => {
+            format!("{}", c)
+        },
+        LispVal::String(s) => format!("{}", s),
+        LispVal::List(xs) => {
+            let mut list = vec![];
+            list.push(format!("("));
+            if xs.len() != 0 {
+                for x in xs.get(0..xs.len()-1).unwrap(){
+                    list.push(format!("{} ", x));
+                }
+                list.push(format!("{}", xs.last().unwrap()));
+            }
+            list.push(format!(")"));
+            list.concat()
+        }
+        LispVal::Nil => format!("()"),
+        LispVal::Lambda(_, _) => format!("#<lambda>"),
+        LispVal::Ident(_) => format!("#<ident>"),
+    }
+}
+
 fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
     let func;
     match lst.get(0).unwrap() {
@@ -293,6 +330,28 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
             println!("{}", args.get(0).unwrap());
             Right(LispVal::Nil)
         },
+        IdentType::Writeln | IdentType::Write => {
+            if args.len() != 1 {
+                return Left(ErrNumArgs(1, args.len() as u32));
+            }
+
+            match func {
+                IdentType::Write => {
+                    print!("{}", displayln(args.get(0).unwrap().clone()));
+                },
+                IdentType::Writeln => {
+                    println!("{}", displayln(args.get(0).unwrap().clone()));
+                },
+                _ => panic!("Unreachable code"),
+            }
+            Right(LispVal::Nil)
+        },
+        IdentType::Display => {
+            if args.len() != 1 {
+                return Left(ErrNumArgs(1, args.len() as u32));
+            }
+            Right(LispVal::String(displayln(args.get(0).unwrap().clone())))
+        }
         IdentType::Name(name) => {
             let lambda_def;
             match env.get_def(name.clone()){

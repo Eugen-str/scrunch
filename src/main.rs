@@ -2,7 +2,7 @@ mod lisp;
 
 use std::{env, fs};
 
-use lisp::scrunch::{eval, Either, LispVal};
+use lisp::scrunch::{eval, Either, LispErr, LispVal};
 use lisp::parse::parse_expr;
 use lisp::env::Env;
 
@@ -40,7 +40,7 @@ fn repl(){
     }
 }
 
-fn get_exprs(contents: String) -> Vec<String>{
+fn get_exprs(contents: String) -> Either<LispErr, Vec<String>>{
     let mut str_acc: Vec<char> = vec![];
     let mut res: Vec<String> = vec![];
     let mut paren_count = 0;
@@ -59,34 +59,48 @@ fn get_exprs(contents: String) -> Vec<String>{
                 str_acc = vec![];
             }
         }
+
+        if paren_count < 0 {
+        }
     }
 
-    return res;
+    return Either::Right(res);
 }
 
-fn eval_file(path: String){
+fn eval_file(path: String) -> Option<LispErr>{
     let contents = fs::read_to_string(path)
         .expect("Should have been able to read the file");
 
     let mut env = Env::new();
 
     let mut exprs: Vec<LispVal> = vec![];
-    for expr in get_exprs(contents){
+
+    let parsed_exprs;
+    match get_exprs(contents){
+        Either::Right(exprs_) => parsed_exprs = exprs_,
+        Either::Left(err) => return Some(err)
+    }
+
+    for expr in parsed_exprs{
         match parse_expr(expr){
             lisp::scrunch::Either::Right(e) => exprs.push(e),
-            lisp::scrunch::Either::Left(err) => {
-                println!("{}", err);
-                return;
-            },
+            lisp::scrunch::Either::Left(err) => return Some(err),
         }
     }
 
     for expr in exprs {
+        if let LispVal::List(lst) = expr.clone() {
+            if lst.len() == 0{
+                continue;
+            }
+        }
         let res = eval(&expr, &mut env);
         if let Either::Left(err) = res {
             println!("{}", err);
         }
     }
+
+    None
 }
 
 fn main() {
@@ -102,6 +116,13 @@ fn main() {
             println!("ERROR: Filename must end in .lisp, provided `{}`", arg0);
             return;
         }
-        eval_file(filename);
+
+        let err = eval_file(filename);
+
+        if let Some(e) = err {
+            println!("{}", e);
+        }
+    } else {
+        println!("ERROR: Incorrect usage");
     }
 }

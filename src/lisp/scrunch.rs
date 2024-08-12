@@ -71,12 +71,14 @@ pub enum IdentType {
     Mod,
     List,
     Eq,
-    Print,
+    Println,
     Lambda,
     Define,
     If,
     Lt,
     Gt,
+    LtEq,
+    GtEq,
 }
 
 impl std::fmt::Display for LispVal {
@@ -213,6 +215,14 @@ fn eval_if(args: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
     }
 }
 
+fn apply_eq<F>(fst: i32, snd: i32, func: F) -> Either<LispErr, LispVal>
+    where F: Fn(i32, i32) -> bool{
+    if func(fst, snd){
+        return Right(LispVal::Bool(true));
+    }
+    return Right(LispVal::Bool(false));
+}
+
 fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
     let func;
     match lst.get(0).unwrap() {
@@ -246,7 +256,7 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
             let res = args.get(1..).unwrap().into_iter().map(|e| e == fst).fold(true, |acc, e| acc && e);
             Right(LispVal::Bool(res))
         },
-        IdentType::Lt   => {
+        IdentType::Lt | IdentType::Gt | IdentType::LtEq | IdentType::GtEq => {
             if args.len() != 2 {
                 return Left(ErrNumArgs(2, args.len() as u32));
             }
@@ -261,17 +271,20 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
                 Left(err) => return Left(err),
             }
 
-            if fst < snd{
-                return Right(LispVal::Bool(true));
+            match func{
+                IdentType::Lt => apply_eq(fst, snd, |a, b| a < b),
+                IdentType::Gt => apply_eq(fst, snd, |a, b| a > b),
+                IdentType::LtEq => apply_eq(fst, snd, |a, b| a <= b),
+                IdentType::GtEq => apply_eq(fst, snd, |a, b| a >= b),
+                _ => panic!("Unreachable code"),
             }
-            return Right(LispVal::Bool(false));
         }
         IdentType::List => return Right(LispVal::List(args)),
-        IdentType::Print => {
+        IdentType::Println => {
             if args.len() != 1 {
                 return Left(ErrNumArgs(1, args.len() as u32));
             }
-            print!("{}", args.get(0).unwrap());
+            println!("{}", args.get(0).unwrap());
             Right(LispVal::Nil)
         },
         IdentType::Name(name) => {
@@ -331,7 +344,6 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
         IdentType::Lambda => Left(ErrOther),
         IdentType::Define => Left(ErrOther),
         IdentType::If => Left(ErrOther),
-        IdentType::Gt => Left(ErrOther),
     }
 }
 

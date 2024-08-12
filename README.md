@@ -8,7 +8,7 @@ Even though the language gets its name from Scheme, it is not a implementation o
 
 Start the REPL with `cargo run`
 
-*Loading files is not yet implemented.*
+To execute a file, use `cargo run <filename>`, for example you can try `cargo run tests/fib.lisp`.
 
 ### Examples
 
@@ -25,7 +25,7 @@ scrunch> (add3 5)
 8
 scrunch> (add3 5 3)
 ERROR: Wrong number of arguments: expected 1, but got 2
-scrunch> (define fib (lambda (n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2)))))))
+scrunch> (define fib (lambda (n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2))))))
 nil
 scrunch> (fib 20)
 6765

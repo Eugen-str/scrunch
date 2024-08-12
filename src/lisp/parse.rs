@@ -32,12 +32,14 @@ fn str_to_val(str: String) -> Either<LispErr, LispVal>{
         "#t" => Right(LispVal::Bool(true)),
         "#f" => Right(LispVal::Bool(false)),
         "list" => Right(LispVal::Ident(IdentType::List)),
-        "print" => Right(LispVal::Ident(IdentType::Print)),
+        "println" => Right(LispVal::Ident(IdentType::Println)),
         "lambda" => Right(LispVal::Ident(IdentType::Lambda)),
         "define" => Right(LispVal::Ident(IdentType::Define)),
         "if" => Right(LispVal::Ident(IdentType::If)),
         "<" => Right(LispVal::Ident(IdentType::Lt)),
         ">" => Right(LispVal::Ident(IdentType::Gt)),
+        "<=" => Right(LispVal::Ident(IdentType::LtEq)),
+        ">=" => Right(LispVal::Ident(IdentType::GtEq)),
         _ => match str.parse::<i32>(){
             Ok(n) => Right(LispVal::Int(n)),
             Err(_) => check_ident(str),
@@ -76,11 +78,14 @@ pub fn parse_expr(input: String) -> Either<LispErr, LispVal>{
     let mut res: LispVal = LispVal::List(vec![]);
     let mut acc: Vec<char> = vec![];
     let mut i: usize = 0;
+    let mut paren_count = 1;
     while i < input.as_str().len() as usize {
         let c = input.chars().nth(i).unwrap();
         if c == '(' && i != 0{
             let next_paren = skip_parens(input[i+1..].to_string());
             let in_expr;
+
+            paren_count += 1;
 
             match parse_expr(input[i..i+next_paren+2].to_string()) {
                 Right(expr) => in_expr = expr,
@@ -102,6 +107,10 @@ pub fn parse_expr(input: String) -> Either<LispErr, LispVal>{
             let str: String = acc.into_iter().collect::<String>().trim().to_string();
             acc = vec![];
 
+            if c == ')'{
+                paren_count -= 1;
+            }
+
             if str != "" && str != "'"{
                 let parsed_val;
                 match str_to_val(str) {
@@ -111,10 +120,19 @@ pub fn parse_expr(input: String) -> Either<LispErr, LispVal>{
 
                 add_to_list(&mut res, parsed_val);
             }
+
+            if paren_count == 0{
+                return Right(res);
+            }
+
         } else if c != '('{
             acc.push(c);
         }
         i += 1;
     }
+    if paren_count != 0 {
+        return Left(LispErr::ErrSyntax("parentheses mismatch".to_string()));
+    }
+
     return Right(res);
 }

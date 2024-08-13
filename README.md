@@ -10,6 +10,8 @@ Start the REPL with `cargo run`
 
 To execute a file, use `cargo run <filename>`, for example you can try `cargo run tests/fib.lisp`.
 
+List of basic examples are below, for more detailed explanations go to [KEYWORDS.md](./KEYWORDS.md).
+
 ### Examples
 
 ```lisp

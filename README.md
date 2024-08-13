@@ -29,4 +29,6 @@ scrunch> (define fib (lambda (n) (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2)))))
 nil
 scrunch> (fib 20)
 6765
+scrunch> ((lambda (x) (+ x 3)) 5)
+8
 ```

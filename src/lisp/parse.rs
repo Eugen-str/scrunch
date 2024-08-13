@@ -55,13 +55,13 @@ fn str_to_val(str: String) -> Either<LispErr, LispVal>{
 
 fn add_to_list(val: &mut LispVal, elem: LispVal){
     if let LispVal::List(xs) = val {
-        if xs.len() == 0{
+        /*if xs.len() == 0{
             *xs = if let LispVal::List(lst) = elem {
                 lst
             } else { vec![elem] }
-        } else {
+        } else {*/
             xs.push(elem)
-        }
+        //}
     }
 }
 
@@ -96,7 +96,7 @@ pub fn parse_expr(input: String) -> Either<LispErr, LispVal>{
             }
 
             return Right(res);
-        } else if c == '(' && i != 0{
+        } else if c == '(' && i != 0 {
             let next_paren = skip_parens(input[i+1..].to_string());
             let in_expr;
 

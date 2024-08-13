@@ -266,18 +266,7 @@ fn displayln(x: LispVal) -> String{
     }
 }
 
-fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
-    let func;
-    match lst.get(0).unwrap() {
-        LispVal::Ident(IdentType::Define) => return eval_define(lst, env),
-        LispVal::Ident(IdentType::Lambda) => return eval_lambda(lst),
-        LispVal::Ident(IdentType::If) => return eval_if(lst, env),
-        LispVal::Ident(x) => func = x,
-        x => {
-            return Left(ErrNotFunc(format!("{}", x)));
-        },
-    };
-
+fn get_args(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, Vec<LispVal>>{
     let mut args = vec![];
     for e in lst.get(1..).unwrap() {
         match eval(e, env) {
@@ -286,6 +275,78 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
                 return Left(eval_err);
             },
         }
+    };
+    return Right(args);
+}
+
+fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
+    let func;
+
+    if let Right(LispVal::Lambda(p, d)) = eval(lst.get(0).unwrap(), env) {
+            let args = match get_args(lst, env) {
+                Right(args_) => args_,
+                Left(err) => return Left(err),
+            };
+
+            let lambda_params = if let LispVal::List(lambda_p) = *p{
+                lambda_p
+            } else {
+                println!("this should be an error");
+                vec![]
+            };
+            let lambda = if let LispVal::List(lambda_d) = *d{
+                lambda_d
+            } else {
+                println!("this should be an error");
+                vec![]
+            };
+
+            if lambda_params.len() != args.len(){
+                return Left(ErrNumArgs(lambda_params.len() as u32, args.len() as u32));
+            }
+
+            let old_env = env.get_state();
+
+            for (i, param) in lambda_params.into_iter().enumerate() {
+                let var_name;
+                if let LispVal::Ident(temp) = param {
+                    if let IdentType::Name(param_name) = temp {
+                        var_name = param_name;
+                    } else {
+                        return Left(ErrSyntax("lambda paramater specifier".to_string()));
+                    }
+                } else {
+                    return Left(ErrSyntax("lambda paramater specifier".to_string()));
+                }
+
+                let var_val = args.get(i).unwrap().clone();
+
+                env.insert(var_name, var_val);
+            }
+
+            let lambda_res = eval(&LispVal::List(lambda), env);
+
+            env.set_state(old_env);
+
+            return lambda_res;
+    } else {
+    }
+
+    match lst.get(0).unwrap() {
+        LispVal::Ident(IdentType::Define) => return eval_define(lst, env),
+        LispVal::Ident(IdentType::Lambda) => { 
+            return eval_lambda(lst)
+        },
+        LispVal::Ident(IdentType::If) => return eval_if(lst, env),
+        LispVal::Ident(x) => func = x,
+        x => {
+            return Left(ErrNotFunc(format!("{}", x)));
+        },
+    };
+
+    let args = match get_args(lst, env) {
+        Right(args_) => args_,
+        Left(err) => return Left(err),
     };
 
     match func {
@@ -485,7 +546,6 @@ pub fn eval(expr: &LispVal, env: &mut Env) -> Either<LispErr, LispVal>{
         LispVal::String(x) => Right(LispVal::String(x.clone())),
         LispVal::Bool(x)   => Right(LispVal::Bool(*x)),
         LispVal::Nil       => Right(LispVal::Nil),
-        //LispVal::Lambda(a,d) => eval_lambda(*a, *d),
         LispVal::Ident(x)  => match x {
             IdentType::Name(x) => env.get_def(x.to_string()),
             _ => Left(ErrOther),

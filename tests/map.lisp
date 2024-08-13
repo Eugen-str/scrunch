@@ -24,3 +24,9 @@
 
 (write "names: ")
 (writeln (map get-num-name test))
+
+(write "map with anonymous function: ")
+(writeln
+  (map
+    (lambda (y) (+ y 1))
+    '(1 2 3)))

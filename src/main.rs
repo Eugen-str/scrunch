@@ -68,8 +68,12 @@ fn get_exprs(contents: String) -> Either<LispErr, Vec<String>>{
 }
 
 fn eval_file(path: String) -> Option<LispErr>{
-    let contents = fs::read_to_string(path)
-        .expect("Should have been able to read the file");
+    let contents = match fs::read_to_string(path.clone()) {
+        Ok(x) => x,
+        Err(_) => {
+            return Some(LispErr::ErrOther(format!("File {path} not found")));
+        },
+    };
 
     let mut env = Env::new();
 

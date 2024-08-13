@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use super::scrunch::{LispVal, Either::{self, *}, LispErr::{self, *}};
 
+#[derive(Debug)]
 pub struct Env {
     pub definitions: HashMap<String, LispVal>,
 }

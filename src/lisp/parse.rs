@@ -38,6 +38,8 @@ fn str_to_val(str: String) -> Either<LispErr, LispVal>{
         "display" => Right(LispVal::Ident(IdentType::Display)),
         "lambda" => Right(LispVal::Ident(IdentType::Lambda)),
         "define" => Right(LispVal::Ident(IdentType::Define)),
+        "defun" => Right(LispVal::Ident(IdentType::Defun)),
+        "macro" => Right(LispVal::Ident(IdentType::Macro)),
         "if" => Right(LispVal::Ident(IdentType::If)),
         "<" => Right(LispVal::Ident(IdentType::Lt)),
         ">" => Right(LispVal::Ident(IdentType::Gt)),

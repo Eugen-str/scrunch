@@ -1,6 +1,9 @@
 (macro m-cadr (x)
   (car (cdr x)))
 
+(macro defun (name args def)
+  (define name (lambda args def)))
+
 (defun f-cadr (x)
   (car (cdr x)))
 

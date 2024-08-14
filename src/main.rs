@@ -2,7 +2,7 @@ mod lisp;
 
 use std::{env, fs};
 
-use lisp::scrunch::{eval, Either, LispErr, LispVal};
+use lisp::scrunch::{eval, get_exprs, Either, LispErr, LispVal};
 use lisp::parse::parse_expr;
 use lisp::env::Env;
 
@@ -40,33 +40,6 @@ fn repl(){
     }
 }
 
-fn get_exprs(contents: String) -> Either<LispErr, Vec<String>>{
-    let mut str_acc: Vec<char> = vec![];
-    let mut res: Vec<String> = vec![];
-    let mut paren_count = 0;
-
-    for c in contents.chars() {
-        if c == '\n'{ continue; }
-
-        str_acc.push(c);
-        if c == '(' {
-            paren_count += 1;
-        } else if c == ')' {
-            paren_count -= 1;
-
-            if paren_count == 0 {
-                res.push(str_acc.clone().into_iter().collect());
-                str_acc = vec![];
-            }
-        }
-
-        if paren_count < 0 {
-        }
-    }
-
-    return Either::Right(res);
-}
-
 fn eval_file(path: String) -> Option<LispErr>{
     let contents = match fs::read_to_string(path.clone()) {
         Ok(x) => x,
@@ -77,14 +50,13 @@ fn eval_file(path: String) -> Option<LispErr>{
 
     let mut env = Env::new();
 
-    let mut exprs: Vec<LispVal> = vec![];
 
-    let parsed_exprs;
-    match get_exprs(contents){
-        Either::Right(exprs_) => parsed_exprs = exprs_,
+    let parsed_exprs = match get_exprs(contents){
+        Either::Right(exprs_) => exprs_,
         Either::Left(err) => return Some(err)
-    }
+    };
 
+    let mut exprs: Vec<LispVal> = vec![];
     for expr in parsed_exprs{
         match parse_expr(expr){
             lisp::scrunch::Either::Right(e) => exprs.push(e),

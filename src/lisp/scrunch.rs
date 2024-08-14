@@ -52,6 +52,8 @@ impl std::fmt::Display for LispErr {
     }
 }
 
+use std::fs;
+
 use LispErr::*;
 
 pub enum Either<A, B>{
@@ -66,29 +68,14 @@ use super::env::Env;
 #[derive (Debug, PartialEq, Eq, Clone, Hash)]
 pub enum IdentType {
     Name(String),
-    Add,
-    Sub,
-    Mult,
-    Div,
-    Mod,
+    Add, Sub, Mult,Div, Mod,
     List,
-    Eq,
-    Println,
-    Write,
-    Writeln,
-    Display,
-    Lambda,
-    Define,
-    Defun,
-    Macro,
+    Println, Write, Writeln, Display,
+    Lambda, Define, Macro,
     If,
-    Lt,
-    Gt,
-    LtEq,
-    GtEq,
-    Car,
-    Cdr,
-    Cons
+    Eq, Lt, Gt, LtEq, GtEq,
+    Car, Cdr, Cons,
+    Import, Export,
 }
 
 impl std::fmt::Display for LispVal {
@@ -180,48 +167,6 @@ fn eval_define(args: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
         Left(err) => return Left(err),
     };
     env.insert(name.clone(), var);
-
-    return Right(LispVal::Nil);
-}
-
-fn eval_defun(args: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
-    let args = args.get(1..).unwrap();
-    if args.len() != 3 {
-        return Left(ErrNumArgs(3, args.len() as u32));
-    }
-
-    let name;
-    if let LispVal::Ident(ident) = args.get(0).unwrap(){
-        if let IdentType::Name(str) = ident{
-            name = str.to_string();
-        } else {
-            return Left(ErrOther("no description yet".to_string()));
-        }
-    } else {
-        return Left(ErrOther("no description yet".to_string()));
-    }
-    let func_args;
-    match args.get(1).clone(){
-        Some(x) => func_args = x,
-        None => return Left(ErrNumArgs(3, args.len() as u32)),
-    };
-
-    let func_def;
-    match args.get(2).clone(){
-        Some(x) => func_def = x,
-        None => return Left(ErrNumArgs(3, args.len() as u32)),
-    };
-
-    let final_res = make_lambda(&vec![
-        LispVal::Ident(IdentType::Lambda),
-        func_args.clone(),
-        func_def.clone(),
-    ]);
-
-    match final_res{
-        Right(res) => env.insert(name.clone(), res),
-        Left(err) => return Left(err),
-    }
 
     return Right(LispVal::Nil);
 }
@@ -413,13 +358,13 @@ fn replace_each(expr: &mut LispVal, target: LispVal, replacement: LispVal){
     };
 }
 
-fn eval_macro(lst: &Vec<LispVal>, env: &mut Env, p: Box<LispVal>, d: Box<LispVal>) -> Either<LispErr, LispVal>{
+fn expand_macro(lst: &Vec<LispVal>, p: Box<LispVal>, d: Box<LispVal>) -> Either<LispErr, LispVal>{
     let macro_params = match *p{
-        LispVal::List(lambda_p) => lambda_p,
+        LispVal::List(macro_p) => macro_p,
         _ => return Left(ErrSyntax("idk what to put here yet".to_string())),
     };
     let mut macro_def = match *d{
-        LispVal::List(lambda_d) => LispVal::List(lambda_d),
+        LispVal::List(macro_d) => LispVal::List(macro_d),
         _ => return Left(ErrSyntax("idk what to put here yet".to_string())),
     };
 
@@ -427,8 +372,6 @@ fn eval_macro(lst: &Vec<LispVal>, env: &mut Env, p: Box<LispVal>, d: Box<LispVal
         Some(x) => x,
         None => return Left(ErrNumArgs(macro_params.len() as u32, 0))
     };
-
-    //println!("args = {:?}\nparams = {:?}\nargs = {:?}\ndefinition = {:?}", lst, macro_params, macro_args, macro_def);
 
     if macro_params.len() != macro_args.len(){
         return Left(ErrNumArgs(macro_params.len() as u32, macro_args.len() as u32));
@@ -440,9 +383,39 @@ fn eval_macro(lst: &Vec<LispVal>, env: &mut Env, p: Box<LispVal>, d: Box<LispVal
         replace_each(&mut macro_def, param, corresponding_arg.clone());
     }
 
-    //println!("new macro def = {:?}", macro_def);
+    return Right(macro_def);
+}
 
-    return eval(&macro_def, env);
+pub fn get_exprs(contents: String) -> Either<LispErr, Vec<String>>{
+    let mut str_acc: Vec<char> = vec![];
+    let mut res: Vec<String> = vec![];
+    let mut paren_count = 0;
+    let mut in_comment = false;
+
+    for c in contents.chars() {
+        if c == ';' {
+            in_comment = true;
+        }
+        if c == '\n' {
+            in_comment = false;
+            continue;
+        }
+        if in_comment { continue; }
+
+        str_acc.push(c);
+        if c == '(' {
+            paren_count += 1;
+        } else if c == ')' {
+            paren_count -= 1;
+
+            if paren_count == 0 {
+                res.push(str_acc.clone().into_iter().collect());
+                str_acc = vec![];
+            }
+        }
+    }
+
+    return Either::Right(res);
 }
 
 fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
@@ -450,14 +423,18 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
     if let Right(LispVal::Lambda(p, d)) = eval(lst.get(0).unwrap(), env) {
         return eval_lambda(lst, env, p, d);
     }
+    // expanding + evalutaing macros
     if let Right(LispVal::Macro(p, d)) = eval(lst.get(0).unwrap(), env) {
-        return eval_macro(lst, env, p, d);
+        let macro_def = match expand_macro(lst, p, d){
+            Right(x) => x,
+            Left(err) => return Left(err),
+        };
+        return eval(&macro_def, env);
     }
 
     let func;
     match lst.get(0).unwrap() {
         LispVal::Ident(IdentType::Define) => return eval_define(lst, env),
-        LispVal::Ident(IdentType::Defun) => return eval_defun(lst, env),
         LispVal::Ident(IdentType::Macro) => return make_macro(lst, env),
         LispVal::Ident(IdentType::Lambda) =>return make_lambda(lst),
         LispVal::Ident(IdentType::If) => return eval_if(lst, env),
@@ -467,6 +444,9 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
         },
     };
 
+    // TODO: Fix misleading error message when trying to run a nonexistant function.
+    // Executing `(xyz a)` gives ERROR: Unknown identifier `a`, but should give
+    // ERROR: Unknown identifier `xyz`
     let args = match get_args(lst, env) {
         Right(args_) => args_,
         Left(err) => return Left(err),
@@ -543,14 +523,12 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
                 Left(err) => return Left(err),
             }
 
-            println!("NAME DEF = {:?}", def);
-
             if let LispVal::Lambda(p, d) = def {
                 return eval_lambda(lst, env, p, d);
             }
 
             if let LispVal::Macro(p, d) = def {
-                return eval_macro(lst, env, p, d);
+                return expand_macro(lst, p, d);
             }
             return Left(ErrOther("apart from builtins, only macros and lambda functions can be evaluated".to_string()));
         },
@@ -559,13 +537,12 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
                 return Left(ErrNumArgs(1, args.len() as u32));
             }
             let lst = args.get(0).unwrap().clone();
-            if lst.type_of() != "list" {
-                return Left(ErrType("list".to_string(), lst.type_of()));
-            }
 
             let lst_vals = if let LispVal::List(unwrapped_list) = lst {
                 unwrapped_list
-            } else { vec![] };
+            } else {
+                return Left(ErrType("list".to_string(), lst.type_of()));
+            };
 
             if lst_vals.len() >= 1 {
                 return Right(lst_vals.get(0).unwrap().clone());
@@ -578,13 +555,12 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
                 return Left(ErrNumArgs(1, args.len() as u32));
             }
             let lst = args.get(0).unwrap().clone();
-            if lst.type_of() != "list" {
-                return Left(ErrType("list".to_string(), lst.type_of()));
-            }
 
             let lst_vals = if let LispVal::List(unwrapped_list) = lst {
                 unwrapped_list
-            } else { vec![] };
+            } else {
+                return Left(ErrType("list".to_string(), lst.type_of()));
+            };
 
             if lst_vals.len() == 1 {
                 return Right(LispVal::List(vec![]));
@@ -618,11 +594,89 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
             res.insert(0, arg1);
 
             return Right(LispVal::List(res));
-        }
+        },
+        IdentType::Import => {
+            let filenames = match args.get(0..) {
+                Some(x) => x.to_vec(),
+                None => return Left(ErrNumArgs(1, 0)),
+            };
+
+            for filename in filenames.into_iter() {
+                if let LispVal::String(path) = filename{
+                    let contents = match fs::read_to_string(path.clone()) {
+                        Ok(x) => x,
+                        Err(_) => {
+                            return Left(ErrOther(format!("File {path} not found")));
+                        },
+                    };
+
+                    let parsed_exprs = match get_exprs(contents){
+                        Either::Right(exprs_) => exprs_,
+                        Either::Left(err) => return Left(err)
+                    };
+
+                    let mut exprs: Vec<LispVal> = vec![];
+                    let mut exports: Vec<LispVal> = vec![];
+                    for expr in parsed_exprs{
+                        match crate::parse_expr(expr){
+                            Right(e) => match e.clone() {
+                                LispVal::List(xs) => {
+                                    match xs.clone().get(0){
+                                        Some(LispVal::Ident(IdentType::Export)) => exports = xs.get(1..).unwrap().to_vec(),
+                                        Some(_) => exprs.push(e),
+                                        _ => {},
+                                    }
+                                }
+                                _ => exprs.push(e)
+                            },
+                            Left(err) => return Left(err),
+                        }
+                    }
+
+                    for expr in exprs {
+                        if let LispVal::List(lst) = expr.clone() {
+                            if lst.len() == 0{
+                                continue;
+                            }
+
+                            if lst.len() > 2 {
+                                if let Right(LispVal::Macro(p, d)) = eval(lst.get(0).unwrap(), env) {
+                                    let macro_def = match expand_macro(&lst, p, d){
+                                        Right(x) => x,
+                                        Left(err) => return Left(err),
+                                    };
+                                    if let LispVal::List(lst) = macro_def{
+                                        if lst.len() > 2 {
+                                            if exports.contains(lst.get(1).unwrap()){
+                                                let res = eval(&expr, env);
+                                                if let Either::Left(err) = res {
+                                                    println!("{}", err);
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if (lst.get(0).unwrap().clone() == LispVal::Ident(IdentType::Define) ||
+                                    lst.get(0).unwrap().clone() == LispVal::Ident(IdentType::Macro)) &&
+                                    exports.contains(lst.get(1).unwrap()){
+                                        let res = eval(&expr, env);
+                                        if let Either::Left(err) = res {
+                                            println!("{}", err);
+                                        }
+                                    }
+                            }
+                        }
+                    }
+                } else {
+                    return Left(ErrType("string".to_string(), filename.type_of()));
+                }
+            }
+
+            return Right(LispVal::Nil);
+        },
         IdentType::Macro  |
         IdentType::Lambda |
         IdentType::Define |
-        IdentType::Defun  |
+        IdentType::Export |
         IdentType::If     => return Left(ErrOther("unreachable code".to_string())),
     }
 }

@@ -33,4 +33,6 @@ scrunch> (fib 20)
 6765
 scrunch> ((lambda (x) (+ x 3)) 5)
 8
+scrunch> (import "include/standard.scr")
+nil
 ```

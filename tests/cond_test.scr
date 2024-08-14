@@ -1,0 +1,17 @@
+(import "include/standard.lisp")
+
+(defun test (x)
+  (cond
+    ((< x 0) "x is small")
+    ((eq? x 1) "x is one")
+    ((eq? x 2) "x is two")
+    ((> x 2) "x is larger than two")
+  ))
+
+(writeln "this should print all of the possible cond statements, in order: ")
+(writeln (test -5))
+(writeln (test 1))
+(writeln (test 2))
+(writeln (test 100))
+(writeln "this should return a `non exhaustive` error: ")
+(writeln (test 0))

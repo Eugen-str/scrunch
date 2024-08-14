@@ -42,6 +42,8 @@ fn str_to_val(str: String) -> Either<LispErr, LispVal>{
         "import" => Right(LispVal::Ident(IdentType::Import)),
         "export" => Right(LispVal::Ident(IdentType::Export)),
         "if" => Right(LispVal::Ident(IdentType::If)),
+        "cond" => Right(LispVal::Ident(IdentType::Cond)),
+        "do" => Right(LispVal::Ident(IdentType::Do)),
         "<" => Right(LispVal::Ident(IdentType::Lt)),
         ">" => Right(LispVal::Ident(IdentType::Gt)),
         "<=" => Right(LispVal::Ident(IdentType::LtEq)),

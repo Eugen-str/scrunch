@@ -1,0 +1,10 @@
+(import "include/standard.lisp")
+
+(defun test ()
+  (do
+    (write "hello")
+    (write ", ")
+    (write "world!")
+    (writeln "")))
+
+(test)

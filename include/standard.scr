@@ -1,0 +1,56 @@
+; Standard library for scrunch
+; For a lot of these functions I got inspiration from '99 problems in lisp'
+; link to those: https://www.ic.unicamp.br/~meidanis/courses/mc336/problemas-lisp/L-99_Ninety-Nine_Lisp_Problems.html
+
+(export defun
+        last
+        map
+        element-at
+        length
+        reverse
+        drop
+        take)
+
+(macro defun (name args def)
+  (define name (lambda args def)))
+
+; TODO: make this return an error given an empty list
+(defun last (lst)
+  (if (eq? lst '())
+    '()
+    (if (eq? (cdr lst) '())
+      (car lst)
+      (last (cdr lst)))))
+
+(defun map (f lst)
+  (if (eq? lst '())
+    '()
+    (cons (f (car lst)) (map f (cdr lst)))
+    ))
+
+(defun element-at (lst n)
+  (if (eq? n 1)
+    (car lst)
+    (element-at (cdr lst) (- n 1))))
+
+(defun length (lst)
+  (if (eq? lst '())
+    0
+    (+ 1 (length (cdr lst)))))
+
+(defun drop (lst n)
+  (cond
+    ((eq? n 0) lst)
+    ((> (length lst) n) (drop (cdr lst) (- n 1)))
+  ))
+
+(defun take (lst n)
+  (cond
+    ((eq? n 0) '())
+    ((> (length lst) n) (cons (car lst) (take (cdr lst) (- n 1))))
+  ))
+
+(defun reverse (lst)
+  (if (eq? lst '())
+    '()
+    (cons (last lst) (reverse (take lst (- (length lst) 1))))))

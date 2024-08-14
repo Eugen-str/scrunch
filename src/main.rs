@@ -86,10 +86,10 @@ fn main() {
     } else if cmd_args.len() == 1 {
         let filename;
         let arg0 = cmd_args.get(0).unwrap();
-        if arg0.ends_with(".lisp") {
+        if arg0.ends_with(".scr") {
             filename = arg0.clone();
         } else {
-            println!("ERROR: Filename must end in .lisp, provided `{}`", arg0);
+            println!("ERROR: Filename must end in .scr, provided `{}`", arg0);
             return;
         }
 

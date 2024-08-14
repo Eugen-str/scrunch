@@ -69,10 +69,10 @@ use super::env::Env;
 pub enum IdentType {
     Name(String),
     Add, Sub, Mult,Div, Mod,
-    List,
+    List, Do,
     Println, Write, Writeln, Display,
     Lambda, Define, Macro,
-    If,
+    If, Cond,
     Eq, Lt, Gt, LtEq, GtEq,
     Car, Cdr, Cons,
     Import, Export,
@@ -241,6 +241,37 @@ fn eval_if(args: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
     } else {
         return eval(args.get(2).unwrap(), env);
     }
+}
+
+fn eval_cond(args: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
+    let args = args.get(1..).unwrap();
+
+    if args.len() == 0 {
+        return Left(ErrNumArgs(1, args.len() as u32));
+    }
+
+    for arg in args{
+        if let LispVal::List(lst) = arg {
+            if lst.len() != 2 {
+                return Left(ErrNumArgs(2, lst.len() as u32));
+            }
+            let cond = match eval(lst.get(0).unwrap(), env){
+                Right(x) => x,
+                Left(err) => return Left(err)
+            };
+            if cond.type_of() != "bool" {
+                return Left(ErrType("bool".to_string(), cond.type_of()));
+            }
+
+            if let LispVal::Bool(true) = cond {
+                return eval(lst.get(1).unwrap(), env);
+            }
+        } else {
+            return Left(ErrType("cond statement".to_string(), arg.type_of()));
+        }
+    }
+
+    return Left(ErrOther("non exhaustive patterns in cond".to_string()));
 }
 
 fn apply_eq<F>(fst: i32, snd: i32, func: F) -> Either<LispErr, LispVal>
@@ -419,6 +450,9 @@ pub fn get_exprs(contents: String) -> Either<LispErr, Vec<String>>{
 }
 
 fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
+    if lst.is_empty() {
+        return Left(ErrOther("illegal expression".to_string()));
+    }
     // evaluating anonymous lambda functions
     if let Right(LispVal::Lambda(p, d)) = eval(lst.get(0).unwrap(), env) {
         return eval_lambda(lst, env, p, d);
@@ -438,6 +472,7 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
         LispVal::Ident(IdentType::Macro) => return make_macro(lst, env),
         LispVal::Ident(IdentType::Lambda) =>return make_lambda(lst),
         LispVal::Ident(IdentType::If) => return eval_if(lst, env),
+        LispVal::Ident(IdentType::Cond) => return eval_cond(lst, env),
         LispVal::Ident(x) => func = x,
         x => {
             return Left(ErrNotFunc(format!("{}", x)));
@@ -673,10 +708,17 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
 
             return Right(LispVal::Nil);
         },
+        IdentType::Do => {
+            for arg in args {
+                eval(&arg, env);
+            }
+            return Right(LispVal::Nil);
+        }
         IdentType::Macro  |
         IdentType::Lambda |
         IdentType::Define |
         IdentType::Export |
+        IdentType::Cond   |
         IdentType::If     => return Left(ErrOther("unreachable code".to_string())),
     }
 }

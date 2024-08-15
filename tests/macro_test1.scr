@@ -4,4 +4,4 @@
 (mydefun cadr (x) (car (cdr x)))
 
 (writeln "this should print 2:")
-(writeln (cadr '(1 2 3)))
+(writeln (cadr (list 1 2 3)))

@@ -69,13 +69,15 @@ use super::env::Env;
 pub enum IdentType {
     Name(String),
     Add, Sub, Mult,Div, Mod,
-    List, Do,
+    List, Append,
+    Do,
     Println, Write, Writeln, Display,
     Lambda, Define, Macro,
     If, Cond,
     Eq, Lt, Gt, LtEq, GtEq,
     Car, Cdr, Cons,
     Import, Export,
+    ThrowError
 }
 
 impl std::fmt::Display for LispVal {
@@ -338,10 +340,6 @@ fn eval_lambda(lst: &Vec<LispVal>, env: &mut Env, p: Box<LispVal>, d: Box<LispVa
         LispVal::List(lambda_p) => lambda_p,
         _ => return Left(ErrSyntax("idk what to put here yet".to_string())),
     };
-    let lambda = match *d{
-        LispVal::List(lambda_d) => lambda_d,
-        _ => return Left(ErrSyntax("idk what to put here yet".to_string())),
-    };
 
     if lambda_params.len() != args.len(){
         return Left(ErrNumArgs(lambda_params.len() as u32, args.len() as u32));
@@ -366,6 +364,16 @@ fn eval_lambda(lst: &Vec<LispVal>, env: &mut Env, p: Box<LispVal>, d: Box<LispVa
         env.insert(var_name, var_val);
     }
 
+    let lambda = match *d{
+        LispVal::List(lambda_d) => lambda_d,
+        LispVal::Ident(IdentType::Name(name)) => {
+            match env.get_def(name){
+                Right(x) => return Right(x),
+                Left(err) => return Left(err),
+            }
+        },
+        x => return Right(x),
+    };
     let lambda_res = eval(&LispVal::List(lambda), env);
 
     env.set_state(old_env);
@@ -522,6 +530,20 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
             }
         }
         IdentType::List => return Right(LispVal::List(args)),
+        IdentType::Append => {
+            if args.len() == 0 {
+                return Left(ErrNumArgs(1, 0));
+            }
+
+            let mut acc = vec![];
+            for e in args.into_iter() {
+                match e {
+                    LispVal::List(xs) => acc.append(&mut xs.clone()),
+                    _ => return Left(ErrType("list".to_string(), e.type_of())),
+                }
+            };
+            return Right(LispVal::List(acc));
+        },
         IdentType::Println => {
             if args.len() != 1 {
                 return Left(ErrNumArgs(1, args.len() as u32));
@@ -709,10 +731,23 @@ fn eval_list(lst: &Vec<LispVal>, env: &mut Env) -> Either<LispErr, LispVal>{
             return Right(LispVal::Nil);
         },
         IdentType::Do => {
+            if args.len() == 0 {
+                return Left(ErrNumArgs(1, 0));
+            }
             for arg in args {
                 eval(&arg, env);
             }
             return Right(LispVal::Nil);
+        },
+        IdentType::ThrowError => {
+            if args.len() != 1 {
+                return Left(ErrNumArgs(1, args.len() as u32));
+            }
+
+            match args.get(0).unwrap(){
+                LispVal::String(err) => return Left(ErrOther(err.clone())),
+                _ => return Left(ErrType("string".to_string(), args.get(0).unwrap().type_of())),
+            }
         }
         IdentType::Macro  |
         IdentType::Lambda |

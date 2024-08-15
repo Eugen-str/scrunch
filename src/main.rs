@@ -2,11 +2,12 @@ mod lisp;
 
 use std::{env, fs};
 
-use lisp::scrunch::{eval, get_exprs, Either, LispErr, LispVal};
+use lisp::scrunch::{eval, get_exprs, Either, IdentType, LispErr, LispVal};
 use lisp::parse::parse_expr;
 use lisp::env::Env;
 
 use linefeed::{Interface, ReadResult};
+use colored::Colorize;
 
 fn repl(){
     let reader = Interface::new("scrunch").unwrap();
@@ -14,6 +15,15 @@ fn repl(){
 
     let mut env = Env::new();
 
+    // include standard.scr by default
+    println!("Importing `include/standard.scr...`");
+    match eval(&LispVal::List(vec![
+            LispVal::Ident(IdentType::Import),
+            LispVal::String("include/standard.scr".to_string())
+    ]), &mut env){
+        Either::Right(_) => println!("{}", "Successfully imported `include/standard.scr`!".bright_green()),
+        Either::Left(err) => println!("{}", format!("{}", err).bright_red()),
+    }
     while let ReadResult::Input(input) = reader.read_line().unwrap() {
         if input == "quit" || input == "exit" {
             break;
@@ -30,11 +40,11 @@ fn repl(){
         }
 
         match eval(&expr, &mut env) {
-            lisp::scrunch::Either::Left(err) => {
-                println!("{}", err);
-            }
             lisp::scrunch::Either::Right(val) => {
                 println!("{}", val);
+            }
+            lisp::scrunch::Either::Left(err) => {
+                println!("{}", format!("{}", err).bright_red());
             }
         };
     }
@@ -49,7 +59,6 @@ fn eval_file(path: String) -> Option<LispErr>{
     };
 
     let mut env = Env::new();
-
 
     let parsed_exprs = match get_exprs(contents){
         Either::Right(exprs_) => exprs_,
@@ -72,7 +81,7 @@ fn eval_file(path: String) -> Option<LispErr>{
         }
         let res = eval(&expr, &mut env);
         if let Either::Left(err) = res {
-            println!("{}", err);
+            println!("{}", format!("{}", err).bright_red());
         }
     }
 
@@ -89,7 +98,7 @@ fn main() {
         if arg0.ends_with(".scr") {
             filename = arg0.clone();
         } else {
-            println!("ERROR: Filename must end in .scr, provided `{}`", arg0);
+            println!("{}", format!("ERROR: Filename must end in .scr, provided `{}`", arg0).bright_red());
             return;
         }
 
@@ -99,6 +108,6 @@ fn main() {
             println!("{}", e);
         }
     } else {
-        println!("ERROR: Incorrect usage");
+        println!("{}", "ERROR: Incorrect usage".bright_red());
     }
 }

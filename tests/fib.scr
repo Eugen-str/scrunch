@@ -1,14 +1,27 @@
-(define fib
+(import "include/standard.scr")
+
+; fib-lam and fib-def are completely equivalent
+
+; keep in mind that if a lambda and macro have the same body,
+; the lambda is going to be significantly faster
+
+(define fib-lam
   (lambda (n)
     (if (< n 2)
       n
-      (+ (fib (- n 1)) (fib (- n 2))))))
+      (+ (fib-lam (- n 1)) (fib-lam (- n 2))))))
 
-(macro fib-d (n)
+(defun fib-def (n)
   (if (< n 2)
     n
-    (+ (fib (- n 1)) (fib (- n 2)))))
+    (+ (fib-def (- n 1)) (fib-def (- n 2)))))
 
-(writeln "these should both be 6765:")
-(writeln (fib 20))
-(writeln (fib-d 20))
+(macro fib-mac (n)
+  (if (< n 2)
+    n
+    (+ (fib-mac (- n 1)) (fib-mac (- n 2)))))
+
+(writeln "these should all be 6765:")
+(writeln (fib-lam 20))
+(writeln (fib-def 20))
+(writeln (fib-mac 20))

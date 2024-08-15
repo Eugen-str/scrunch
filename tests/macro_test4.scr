@@ -1,0 +1,8 @@
+(macro setq-case (v1 v2 e)
+    (cond
+        (#f (define v1 e))
+        (#t (define v2 e))))
+
+(setq-case a b 3)
+
+(writeln b)

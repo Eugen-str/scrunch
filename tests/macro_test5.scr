@@ -1,0 +1,24 @@
+(import "include/standard.scr")
+
+(defun range-helper (n)
+  (if (eq? n 0)
+    '(0)
+    (cons n (range-helper (- n 1)))))
+
+(defun range (n)
+  (reverse (range-helper n)))
+
+(defun is-even (x)
+    (eq? (% x 2) 0))
+
+; the quotes (') before each used macro paramater are not neccessary,
+; i just think it makes it more readable in some cases, especially
+; when there are many unused params like for, in and if
+
+(macro listcomp ('expr for 'var in 'lst if 'condition)
+  (map (lambda ('var) 'expr)
+       (filter (lambda ('var) 'condition)
+               'lst)))
+
+(writeln
+  (listcomp (* 3 x) for x in (range 10) if (is-even x)))

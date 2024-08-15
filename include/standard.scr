@@ -9,7 +9,9 @@
         length
         reverse
         drop
-        take)
+        take
+        filter
+        id)
 
 (macro defun (name args def)
   (define name (lambda args def)))
@@ -53,4 +55,14 @@
 (defun reverse (lst)
   (if (eq? lst '())
     '()
-    (cons (last lst) (reverse (take lst (- (length lst) 1))))))
+    (cons (last lst)
+          (reverse (take lst (- (length lst) 1))))))
+
+(defun filter (f lst)
+  (cond
+    ((eq? lst '()) '())
+    ((eq? #t (f (car lst))) (cons (car lst) (filter f (cdr lst))))
+    (#t (filter f (cdr lst)))
+  ))
+
+(defun id (x) x)

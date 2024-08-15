@@ -1,0 +1,13 @@
+(import "include/standard.scr")
+
+(defun test (x)
+  (cond
+    ((eq? x 1) (error "Don't pass 1"))
+    ((eq? x "hello") (error "bye"))
+    (#t (writeln "not an error"))
+  ))
+
+(writeln "This should print two errors and 'not an error'")
+(test 1)
+(test "hello")
+(test "abcdefg")

@@ -1,4 +1,4 @@
-(import "include/standard.lisp")
+(import "include/standard.scr")
 
 (defun test ()
   (do

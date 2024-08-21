@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::scrunch::{LispVal, Either::{self, *}, LispErr::{self, *}};
+use super::scrunch::{LispVal, LispErr::{self, *}};
 
 #[derive(Debug)]
 pub struct Env {
@@ -14,10 +14,10 @@ impl Env {
         }
     }
 
-    pub fn get_def(&mut self, name: String) -> Either<LispErr, LispVal>{
+    pub fn get_def(&mut self, name: String) -> Result<LispVal, LispErr>{
         match self.definitions.get(&name){
-            Some(x) => Right(x.clone()),
-            None => Left(ErrUnknownIdent(name)),
+            Some(x) => Ok(x.clone()),
+            None => Err(ErrUnknownIdent(name)),
         }
     }
 

@@ -1,60 +1,59 @@
 use crate::lisp::scrunch::LispVal;
 use crate::lisp::scrunch::IdentType;
 
-use super::scrunch::Either::{self, *};
 use super::scrunch::LispErr;
 
-fn check_ident(name: String) -> Either<LispErr, LispVal>{
-    return Right(LispVal::Ident(IdentType::Name(name)));
+fn check_ident(name: String) -> Result<LispVal, LispErr>{
+    return Ok(LispVal::Ident(IdentType::Name(name)));
 }
 
-fn str_to_val(str: String) -> Either<LispErr, LispVal>{
+fn str_to_val(str: String) -> Result<LispVal, LispErr>{
     if str.starts_with("#\\"){
         let parse_char = &str[2..];
         match parse_char {
-            "space" => return Right(LispVal::Char(' ')),
-            "newline" => return Right(LispVal::Char('\n')),
+            "space" => return Ok(LispVal::Char(' ')),
+            "newline" => return Ok(LispVal::Char('\n')),
             _ => if parse_char.len() == 1 && parse_char.is_ascii() {
-                return Right(LispVal::Char(parse_char.chars().nth(0).unwrap()));
+                return Ok(LispVal::Char(parse_char.chars().nth(0).unwrap()));
             },
         }
     }
     if str.starts_with("\"") && str.ends_with("\""){
-        return Right(LispVal::String(str[1..str.len()-1].to_string()))
+        return Ok(LispVal::String(str[1..str.len()-1].to_string()))
     }
     match str.as_str() {
-        "+" => Right(LispVal::Ident(IdentType::Add)),
-        "-" => Right(LispVal::Ident(IdentType::Sub)),
-        "*" => Right(LispVal::Ident(IdentType::Mult)),
-        "/" => Right(LispVal::Ident(IdentType::Div)),
-        "%" => Right(LispVal::Ident(IdentType::Mod)),
-        "eq?" => Right(LispVal::Ident(IdentType::Eq)),
-        "#t" => Right(LispVal::Bool(true)),
-        "#f" => Right(LispVal::Bool(false)),
-        "list" => Right(LispVal::Ident(IdentType::List)),
-        "append" => Right(LispVal::Ident(IdentType::Append)),
-        "println" => Right(LispVal::Ident(IdentType::Println)),
-        "write" => Right(LispVal::Ident(IdentType::Write)),
-        "writeln" => Right(LispVal::Ident(IdentType::Writeln)),
-        "display" => Right(LispVal::Ident(IdentType::Display)),
-        "lambda" => Right(LispVal::Ident(IdentType::Lambda)),
-        "define" => Right(LispVal::Ident(IdentType::Define)),
-        "macro" => Right(LispVal::Ident(IdentType::Macro)),
-        "import" => Right(LispVal::Ident(IdentType::Import)),
-        "error" => Right(LispVal::Ident(IdentType::ThrowError)),
-        "export" => Right(LispVal::Ident(IdentType::Export)),
-        "if" => Right(LispVal::Ident(IdentType::If)),
-        "cond" => Right(LispVal::Ident(IdentType::Cond)),
-        "do" => Right(LispVal::Ident(IdentType::Do)),
-        "<" => Right(LispVal::Ident(IdentType::Lt)),
-        ">" => Right(LispVal::Ident(IdentType::Gt)),
-        "<=" => Right(LispVal::Ident(IdentType::LtEq)),
-        ">=" => Right(LispVal::Ident(IdentType::GtEq)),
-        "car" => Right(LispVal::Ident(IdentType::Car)),
-        "cdr" => Right(LispVal::Ident(IdentType::Cdr)),
-        "cons" => Right(LispVal::Ident(IdentType::Cons)),
+        "+" => Ok(LispVal::Ident(IdentType::Add)),
+        "-" => Ok(LispVal::Ident(IdentType::Sub)),
+        "*" => Ok(LispVal::Ident(IdentType::Mult)),
+        "/" => Ok(LispVal::Ident(IdentType::Div)),
+        "%" => Ok(LispVal::Ident(IdentType::Mod)),
+        "eq?" => Ok(LispVal::Ident(IdentType::Eq)),
+        "#t" => Ok(LispVal::Bool(true)),
+        "#f" => Ok(LispVal::Bool(false)),
+        "list" => Ok(LispVal::Ident(IdentType::List)),
+        "append" => Ok(LispVal::Ident(IdentType::Append)),
+        "println" => Ok(LispVal::Ident(IdentType::Println)),
+        "write" => Ok(LispVal::Ident(IdentType::Write)),
+        "writeln" => Ok(LispVal::Ident(IdentType::Writeln)),
+        "display" => Ok(LispVal::Ident(IdentType::Display)),
+        "lambda" => Ok(LispVal::Ident(IdentType::Lambda)),
+        "define" => Ok(LispVal::Ident(IdentType::Define)),
+        "macro" => Ok(LispVal::Ident(IdentType::Macro)),
+        "import" => Ok(LispVal::Ident(IdentType::Import)),
+        "error" => Ok(LispVal::Ident(IdentType::ThrowError)),
+        "export" => Ok(LispVal::Ident(IdentType::Export)),
+        "if" => Ok(LispVal::Ident(IdentType::If)),
+        "cond" => Ok(LispVal::Ident(IdentType::Cond)),
+        "do" => Ok(LispVal::Ident(IdentType::Do)),
+        "<" => Ok(LispVal::Ident(IdentType::Lt)),
+        ">" => Ok(LispVal::Ident(IdentType::Gt)),
+        "<=" => Ok(LispVal::Ident(IdentType::LtEq)),
+        ">=" => Ok(LispVal::Ident(IdentType::GtEq)),
+        "car" => Ok(LispVal::Ident(IdentType::Car)),
+        "cdr" => Ok(LispVal::Ident(IdentType::Cdr)),
+        "cons" => Ok(LispVal::Ident(IdentType::Cons)),
         _ => match str.parse::<i32>(){
-            Ok(n) => Right(LispVal::Int(n)),
+            Ok(n) => Ok(LispVal::Int(n)),
             Err(_) => check_ident(str),
         }
     }
@@ -81,7 +80,7 @@ fn skip_parens(str: String) -> usize {
     return 0;
 }
 
-pub fn parse_expr(input: String) -> Either<LispErr, LispVal>{
+pub fn parse_expr(input: String) -> Result<LispVal, LispErr>{
     let input = input.trim();
     let mut res: LispVal = LispVal::List(vec![]);
     let mut acc: Vec<char> = vec![];
@@ -93,10 +92,10 @@ pub fn parse_expr(input: String) -> Either<LispErr, LispVal>{
 
         if c == ';' {
             if paren_count != 0 {
-                return Left(LispErr::ErrSyntax("parentheses mismatch".to_string()));
+                return Err(LispErr::ErrSyntax("parentheses mismatch".to_string()));
             }
 
-            return Right(res);
+            return Ok(res);
         } else if c == '(' && i != 0 {
             let next_paren = skip_parens(input[i+1..].to_string());
             let in_expr;
@@ -104,8 +103,8 @@ pub fn parse_expr(input: String) -> Either<LispErr, LispVal>{
             paren_count += 1;
 
             match parse_expr(input[i..i+next_paren+2].to_string()) {
-                Right(expr) => in_expr = expr,
-                Left(err) => return Left(err),
+                Ok(expr) => in_expr = expr,
+                Err(err) => return Err(err),
             }
 
             if acc.clone().into_iter().collect::<String>() == "'"{
@@ -127,7 +126,7 @@ pub fn parse_expr(input: String) -> Either<LispErr, LispVal>{
                 let mut c_ = input.chars().nth(i).unwrap();
                 while c_ != '"' {
                     if c_ == '\n' || c_ == ')' {
-                        return Left(LispErr::ErrSyntax("unterminated string".to_string()));
+                        return Err(LispErr::ErrSyntax("unterminated string".to_string()));
                     }
 
                     c_ = input.chars().nth(i).unwrap();
@@ -144,15 +143,15 @@ pub fn parse_expr(input: String) -> Either<LispErr, LispVal>{
             if str != "" && str != "'"{
                 let parsed_val;
                 match str_to_val(str) {
-                    Right(val) => parsed_val = val,
-                    Left(err) => return Left(err),
+                    Ok(val) => parsed_val = val,
+                    Err(err) => return Err(err),
                 }
 
                 add_to_list(&mut res, parsed_val);
             }
 
             if paren_count == 0{
-                return Right(res);
+                return Ok(res);
             }
 
         } else if c != '('{
@@ -161,8 +160,8 @@ pub fn parse_expr(input: String) -> Either<LispErr, LispVal>{
         i += 1;
     }
     if paren_count != 0 {
-        return Left(LispErr::ErrSyntax("parentheses mismatch".to_string()));
+        return Err(LispErr::ErrSyntax("parentheses mismatch".to_string()));
     }
 
-    return Right(res);
+    return Ok(res);
 }

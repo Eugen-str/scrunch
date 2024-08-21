@@ -2,7 +2,7 @@ mod lisp;
 
 use std::{env, fs};
 
-use lisp::scrunch::{eval, get_exprs, Either, IdentType, LispErr, LispVal};
+use lisp::scrunch::{eval, get_exprs, IdentType, LispErr, LispVal};
 use lisp::parse::parse_expr;
 use lisp::env::Env;
 
@@ -21,8 +21,8 @@ fn repl(){
             LispVal::Ident(IdentType::Import),
             LispVal::String("include/standard.scr".to_string())
     ]), &mut env){
-        Either::Right(_) => println!("{}", "Successfully imported `include/standard.scr`!".bright_green()),
-        Either::Left(err) => println!("{}", format!("{}", err).bright_red()),
+        Ok(_) => println!("{}", "Successfully imported `include/standard.scr`!".bright_green()),
+        Err(err) => println!("{}", format!("{}", err).bright_red()),
     }
     while let ReadResult::Input(input) = reader.read_line().unwrap() {
         if input == "quit" || input == "exit" {
@@ -32,18 +32,18 @@ fn repl(){
         reader.add_history(input.clone());
         let expr;
         match parse_expr(input){
-            lisp::scrunch::Either::Right(e) => expr = e,
-            lisp::scrunch::Either::Left(err) => {
+            Ok(e) => expr = e,
+            Err(err) => {
                 println!("{}", err);
                 continue;
             },
         }
 
         match eval(&expr, &mut env) {
-            lisp::scrunch::Either::Right(val) => {
+            Ok(val) => {
                 println!("{}", val);
             }
-            lisp::scrunch::Either::Left(err) => {
+            Err(err) => {
                 println!("{}", format!("{}", err).bright_red());
             }
         };
@@ -61,15 +61,15 @@ fn eval_file(path: String) -> Option<LispErr>{
     let mut env = Env::new();
 
     let parsed_exprs = match get_exprs(contents){
-        Either::Right(exprs_) => exprs_,
-        Either::Left(err) => return Some(err)
+        Ok(exprs_) => exprs_,
+        Err(err) => return Some(err)
     };
 
     let mut exprs: Vec<LispVal> = vec![];
     for expr in parsed_exprs{
         match parse_expr(expr){
-            lisp::scrunch::Either::Right(e) => exprs.push(e),
-            lisp::scrunch::Either::Left(err) => return Some(err),
+            Ok(e) => exprs.push(e),
+            Err(err) => return Some(err),
         }
     }
 
@@ -80,7 +80,7 @@ fn eval_file(path: String) -> Option<LispErr>{
             }
         }
         let res = eval(&expr, &mut env);
-        if let Either::Left(err) = res {
+        if let Err(err) = res {
             println!("{}", format!("{}", err).bright_red());
         }
     }
